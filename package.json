@@ -2,7 +2,7 @@
   "name": "crawler-sage",
   "displayName": "Crawler Sage",
   "description": "Real-time codebase context for AI agents — powered by Repomix + Gitingest with auto-updating file watcher",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "pudiish",
   "license": "MIT",
   "icon": "assets/icon.png",
