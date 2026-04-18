@@ -16,40 +16,44 @@ export class GitingestEngine {
         }
 
         return new Promise((resolve) => {
-            // Run gitingest via Python
-            const script = `
-import sys
-try:
-    from gitingest import ingest
-    summary, tree, content = ingest("${this.workspaceRoot.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")
-    output = f"""# Gitingest Output
+            // Write a temporary Python script to avoid shell escaping issues
+            const scriptPath = path.join(outputDir, '_run_gitingest.py');
+            const escapedRoot = this.workspaceRoot.replace(/\\/g, '\\\\');
+            const escapedOutput = outputPath.replace(/\\/g, '\\\\');
 
-## Summary
-{'{summary}'}
+            const script = [
+                'import sys',
+                'try:',
+                '    from gitingest import ingest',
+                `    summary, tree, content = ingest("${escapedRoot}")`,
+                '    header = "# Gitingest Output\\n"',
+                '    output = header',
+                '    output += "\\n## Summary\\n" + str(summary) + "\\n"',
+                '    output += "\\n## Directory Tree\\n" + str(tree) + "\\n"',
+                '    output += "\\n## Content\\n" + str(content) + "\\n"',
+                `    with open("${escapedOutput}", "w") as f:`,
+                '        f.write(output)',
+                '    file_count = tree.count("\\n") if tree else 0',
+                '    char_count = len(content) if content else 0',
+                '    print(f"SUCCESS|files={file_count}|chars={char_count}")',
+                'except ImportError:',
+                '    print("ERROR|gitingest not installed. Run: pip install gitingest")',
+                '    sys.exit(1)',
+                'except Exception as e:',
+                '    print(f"ERROR|{e}")',
+                '    sys.exit(1)',
+            ].join('\n');
 
-## Directory Tree
-{'{tree}'}
+            fs.writeFileSync(scriptPath, script, 'utf-8');
 
-## Content
-{'{content}'}
-"""
-    with open("${outputPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}", "w") as f:
-        f.write(output)
-    print(f"SUCCESS|files={'{tree.count(chr(10))}'}|chars={'{len(content)}'}")
-except ImportError:
-    print("ERROR|gitingest not installed. Run: pip install gitingest")
-    sys.exit(1)
-except Exception as e:
-    print(f"ERROR|{'{e}'}")
-    sys.exit(1)
-`;
-
-            execFile('python3', ['-c', script], {
+            execFile('python3', [scriptPath], {
                 cwd: this.workspaceRoot,
                 maxBuffer: 50 * 1024 * 1024,
                 timeout: 120000,
                 env: process.env
             }, (error, stdout, stderr) => {
+                // Clean up temp script
+                try { fs.unlinkSync(scriptPath); } catch {}
                 const duration = Date.now() - start;
 
                 if (error || stdout.startsWith('ERROR')) {
