@@ -1,15 +1,23 @@
 # Changelog
 
-All notable changes to Crawler Sage will be documented in this file.
+## 2.0.0
 
-## [1.0.0] - 2026-04-18
+- Repomix-only engine (removed Gitingest — no Python required)
+- Default XML output for machine-readable agent consumption
+- Tree-sitter compression (~70% token reduction)
+- Interactive codebase tree webview with search + stats
+- Sidebar file tree with click-to-open
+- Hamster logo
 
-### Added
-- Dual-engine context generation (Repomix + Gitingest)
-- Real-time file watcher with debounced auto-regeneration
-- Cross-engine comparison and accuracy scoring
-- VS Code sidebar with Status and Engine views
-- Status bar indicator (watching / generating / error)
-- Command palette commands: Generate, Toggle Watch, Compare Engines, Open Context
-- Full settings panel (watch toggle, debounce, output file, engine selection, exclude patterns)
-- `.context.md` output — always up-to-date for AI agents
+## 1.0.1
+
+- Added Tree-sitter compression flag
+- Excluded .git directories from scanning
+- Lean .context.md summary output
+
+## 1.0.0
+
+- Initial release
+- Dual-engine context generation
+- File watcher with debounce
+- Sidebar panel and status bar

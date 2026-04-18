@@ -2,7 +2,7 @@
   "name": "crawler-sage",
   "displayName": "Crawler Sage",
   "description": "Instant codebase context for AI agents — Repomix + Tree-sitter compression with interactive tree visualization",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publisher": "pudiish",
   "license": "MIT",
   "icon": "assets/712d070f4f6039f17137ac4f7abaa68b.jpg",
