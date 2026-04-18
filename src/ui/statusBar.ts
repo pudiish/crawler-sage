@@ -1,48 +1,40 @@
 import * as vscode from 'vscode';
 
 export class StatusBarManager implements vscode.Disposable {
-    private statusBarItem: vscode.StatusBarItem;
+    private item: vscode.StatusBarItem;
 
     constructor() {
-        this.statusBarItem = vscode.window.createStatusBarItem(
-            vscode.StatusBarAlignment.Left,
-            100
-        );
-        this.statusBarItem.command = 'crawlerSage.toggleWatch';
-        this.statusBarItem.text = '$(telescope) Sage: Ready';
-        this.statusBarItem.tooltip = 'Crawler Sage — Click to toggle watcher';
-        this.statusBarItem.show();
+        this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+        this.item.command = 'crawlerSage.generate';
+        this.item.text = '$(telescope) Sage';
+        this.item.tooltip = 'Crawler Sage — Click to generate context';
+        this.item.show();
     }
 
-    setReady(timestamp: Date): void {
-        const time = timestamp.toLocaleTimeString();
-        this.statusBarItem.text = `$(telescope) Sage: Updated ${time}`;
-        this.statusBarItem.backgroundColor = undefined;
+    setReady(files: number, tokens: number): void {
+        this.item.text = `$(telescope) Sage: ${files} files · ${(tokens / 1000).toFixed(0)}K tokens`;
+        this.item.tooltip = 'Crawler Sage — Click to regenerate';
+        this.item.backgroundColor = undefined;
     }
 
     setGenerating(): void {
-        this.statusBarItem.text = '$(loading~spin) Sage: Generating...';
-        this.statusBarItem.backgroundColor = undefined;
+        this.item.text = '$(loading~spin) Sage: Generating...';
+        this.item.backgroundColor = undefined;
     }
 
     setWatching(watching: boolean): void {
-        if (watching) {
-            this.statusBarItem.text = '$(eye) Sage: Watching';
-            this.statusBarItem.tooltip = 'Crawler Sage — File watcher active. Click to disable.';
-        } else {
-            this.statusBarItem.text = '$(eye-closed) Sage: Paused';
-            this.statusBarItem.tooltip = 'Crawler Sage — File watcher paused. Click to enable.';
-        }
+        const icon = watching ? '$(eye)' : '$(eye-closed)';
+        this.item.text = `${icon} Sage: ${watching ? 'Watching' : 'Paused'}`;
+        this.item.tooltip = `Crawler Sage — Watcher ${watching ? 'active' : 'paused'}`;
     }
 
-    setError(): void {
-        this.statusBarItem.text = '$(error) Sage: Error';
-        this.statusBarItem.backgroundColor = new vscode.ThemeColor(
-            'statusBarItem.errorBackground'
-        );
+    setError(msg: string): void {
+        this.item.text = '$(error) Sage: Error';
+        this.item.tooltip = msg;
+        this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
     }
 
     dispose(): void {
-        this.statusBarItem.dispose();
+        this.item.dispose();
     }
 }

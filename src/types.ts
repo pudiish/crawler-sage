@@ -1,27 +1,29 @@
+export interface FileNode {
+    name: string;
+    path: string;
+    type: 'file' | 'directory';
+    children?: FileNode[];
+    tokenCount?: number;
+    language?: string;
+}
+
 export interface EngineResult {
-    engine: 'repomix' | 'gitingest';
     files: string[];
     fileCount: number;
     tokenCount: number;
+    charCount: number;
     content: string;
     duration: number;
     timestamp: Date;
+    tree: FileNode;
     error?: string;
 }
 
 export interface GenerateResult {
     totalFiles: number;
     totalTokens: number;
+    totalChars: number;
     timestamp: Date;
-    engines: EngineResult[];
+    result: EngineResult;
     outputPath: string;
-}
-
-export interface ComparisonResult {
-    onlyInRepomix: string[];
-    onlyInGitingest: string[];
-    inBoth: string[];
-    repomixFileCount: number;
-    gitingestFileCount: number;
-    accuracy: number;
 }

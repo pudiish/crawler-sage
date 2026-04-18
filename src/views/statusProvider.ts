@@ -19,62 +19,43 @@ export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
 
     getChildren(): StatusItem[] {
         const result = this.contextEngine.lastResult;
-        const items: StatusItem[] = [];
-
         if (!result) {
-            items.push(new StatusItem(
-                'No context generated yet',
-                'Run "Crawler Sage: Generate Context" to start',
-                'info'
-            ));
-            return items;
+            return [
+                new StatusItem('$(zap) Generate context to get started', '', 'crawlerSage.generate')
+            ];
         }
 
-        items.push(new StatusItem(
-            `Files: ${result.totalFiles}`,
-            `Total files processed`,
-            'file'
-        ));
-
-        items.push(new StatusItem(
-            `Tokens: ~${result.totalTokens.toLocaleString()}`,
-            `Estimated token count`,
-            'symbol-number'
-        ));
-
-        items.push(new StatusItem(
-            `Last update: ${result.timestamp.toLocaleTimeString()}`,
-            result.timestamp.toISOString(),
-            'clock'
-        ));
-
-        items.push(new StatusItem(
-            `Output: ${result.outputPath.split('/').pop()}`,
-            result.outputPath,
-            'output'
-        ));
-
-        const comparison = this.contextEngine.lastComparison;
-        if (comparison) {
-            items.push(new StatusItem(
-                `Accuracy: ${comparison.accuracy}%`,
-                `Cross-engine overlap accuracy`,
-                comparison.accuracy > 80 ? 'pass' : 'warning'
-            ));
-        }
-
-        return items;
+        return [
+            new StatusItem(
+                `$(file) ${result.totalFiles} files`,
+                `Indexed ${result.totalFiles} files`
+            ),
+            new StatusItem(
+                `$(symbol-number) ~${result.totalTokens.toLocaleString()} tokens`,
+                `Estimated token count for AI agents`
+            ),
+            new StatusItem(
+                `$(text-size) ${result.totalChars.toLocaleString()} chars`,
+                `Total character count`
+            ),
+            new StatusItem(
+                `$(clock) ${result.result.duration}ms`,
+                `Generation took ${result.result.duration}ms`
+            ),
+            new StatusItem(
+                `$(calendar) ${result.timestamp.toLocaleTimeString()}`,
+                `Last updated: ${result.timestamp.toISOString()}`
+            ),
+        ];
     }
 }
 
 class StatusItem extends vscode.TreeItem {
-    constructor(
-        label: string,
-        tooltip: string,
-        icon: string
-    ) {
+    constructor(label: string, tooltip: string, command?: string) {
         super(label, vscode.TreeItemCollapsibleState.None);
         this.tooltip = tooltip;
-        this.iconPath = new vscode.ThemeIcon(icon);
+        if (command) {
+            this.command = { command, title: label };
+        }
     }
 }

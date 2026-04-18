@@ -2,73 +2,46 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { RepomixEngine } from './repomixEngine';
-import { GitingestEngine } from './gitingestEngine';
-import { EngineResult, GenerateResult, ComparisonResult } from '../types';
+import { EngineResult, GenerateResult, FileNode } from '../types';
 
 export class ContextEngine {
     private repomix: RepomixEngine;
-    private gitingest: GitingestEngine;
     private _lastResult: GenerateResult | null = null;
-    private _lastComparison: ComparisonResult | null = null;
     private _onDidUpdate = new vscode.EventEmitter<GenerateResult>();
     readonly onDidUpdate = this._onDidUpdate.event;
 
     constructor(private workspaceRoot: string) {
         this.repomix = new RepomixEngine(workspaceRoot);
-        this.gitingest = new GitingestEngine(workspaceRoot);
     }
 
     get lastResult(): GenerateResult | null {
         return this._lastResult;
     }
 
-    get lastComparison(): ComparisonResult | null {
-        return this._lastComparison;
+    get lastTree(): FileNode | null {
+        return this._lastResult?.result?.tree ?? null;
     }
 
     async generate(): Promise<GenerateResult> {
         const config = vscode.workspace.getConfiguration('crawlerSage');
-        const engines = config.get<string[]>('engines', ['repomix', 'gitingest']);
-        const outputFile = config.get<string>('outputFile', '.context.md');
-        const style = config.get<string>('repomixStyle', 'markdown');
+        const style = config.get<string>('outputStyle', 'xml');
         const compress = config.get<boolean>('compress', true);
 
-        const results: EngineResult[] = [];
+        const result = await this.repomix.run(style, compress);
 
-        // Run enabled engines in parallel
-        const promises: Promise<EngineResult>[] = [];
-
-        if (engines.includes('repomix')) {
-            promises.push(this.repomix.run(style, compress));
-        }
-        if (engines.includes('gitingest') && config.get<boolean>('gitingestEnabled', true)) {
-            promises.push(this.gitingest.run());
-        }
-
-        const settled = await Promise.allSettled(promises);
-        for (const result of settled) {
-            if (result.status === 'fulfilled') {
-                results.push(result.value);
-            }
-        }
-
-        // Merge results and write output
-        const merged = this.mergeResults(results);
+        const outputFile = config.get<string>('outputFile', '.context.md');
         const outputPath = path.join(this.workspaceRoot, outputFile);
-        fs.writeFileSync(outputPath, merged.content, 'utf-8');
 
-        // Run comparison if both engines ran successfully
-        const repomixResult = results.find(r => r.engine === 'repomix' && !r.error);
-        const gitingestResult = results.find(r => r.engine === 'gitingest' && !r.error);
-        if (repomixResult && gitingestResult) {
-            this._lastComparison = this.crossCheck(repomixResult, gitingestResult);
-        }
+        // Write a lean summary file
+        const summary = this.buildSummary(result, style);
+        fs.writeFileSync(outputPath, summary, 'utf-8');
 
         const generateResult: GenerateResult = {
-            totalFiles: merged.totalFiles,
-            totalTokens: merged.totalTokens,
+            totalFiles: result.fileCount,
+            totalTokens: result.tokenCount,
+            totalChars: result.charCount,
             timestamp: new Date(),
-            engines: results,
+            result,
             outputPath
         };
 
@@ -78,135 +51,42 @@ export class ContextEngine {
         return generateResult;
     }
 
-    async compareEngines(): Promise<string> {
-        const config = vscode.workspace.getConfiguration('crawlerSage');
-        const style = config.get<string>('repomixStyle', 'markdown');
-        const compress = config.get<boolean>('compress', true);
-
-        const [repomixResult, gitingestResult] = await Promise.all([
-            this.repomix.run(style, compress),
-            this.gitingest.run()
-        ]);
-
-        const comparison = this.crossCheck(repomixResult, gitingestResult);
-        this._lastComparison = comparison;
-
-        return this.formatComparison(repomixResult, gitingestResult, comparison);
-    }
-
-    private crossCheck(repomix: EngineResult, gitingest: EngineResult): ComparisonResult {
-        const repomixSet = new Set(repomix.files.map(f => this.normalizePath(f)));
-        const gitingestSet = new Set(gitingest.files.map(f => this.normalizePath(f)));
-
-        const onlyInRepomix = [...repomixSet].filter(f => !gitingestSet.has(f));
-        const onlyInGitingest = [...gitingestSet].filter(f => !repomixSet.has(f));
-        const inBoth = [...repomixSet].filter(f => gitingestSet.has(f));
-
-        const totalUnique = new Set([...repomixSet, ...gitingestSet]).size;
-        const accuracy = totalUnique > 0 ? (inBoth.length / totalUnique) * 100 : 100;
-
-        return {
-            onlyInRepomix,
-            onlyInGitingest,
-            inBoth,
-            repomixFileCount: repomix.fileCount,
-            gitingestFileCount: gitingest.fileCount,
-            accuracy: Math.round(accuracy * 10) / 10
-        };
-    }
-
-    private normalizePath(filePath: string): string {
-        return filePath.replace(/^\.\//, '').replace(/\\/g, '/');
-    }
-
-    private mergeResults(results: EngineResult[]): { content: string; totalFiles: number; totalTokens: number } {
+    private buildSummary(result: EngineResult, style: string): string {
         const timestamp = new Date().toISOString();
-        let totalFiles = 0;
-        let totalTokens = 0;
+        const ext = style === 'xml' ? 'xml' : 'md';
 
-        let content = `# Codebase Context\n\n`;
-        content += `> Generated by [Crawler Sage](https://github.com/pudiish/crawler-sage) at ${timestamp}\n\n`;
+        let s = `# Codebase Context\n\n`;
+        s += `> Generated by [Crawler Sage](https://github.com/pudiish/crawler-sage) at ${timestamp}\n\n`;
+        s += `| Metric | Value |\n|--------|-------|\n`;
+        s += `| Files | ${result.fileCount} |\n`;
+        s += `| Tokens | ~${result.tokenCount.toLocaleString()} |\n`;
+        s += `| Characters | ${result.charCount.toLocaleString()} |\n`;
+        s += `| Style | ${style} (tree-sitter compressed) |\n`;
+        s += `| Duration | ${result.duration}ms |\n\n`;
+        s += `## Full Output\n\n`;
+        s += `\`.crawler-sage/repomix-output.${ext}\`\n\n`;
+        s += `## Directory Structure\n\n`;
+        s += `\`\`\`\n`;
+        s += this.renderTree(result.tree, '');
+        s += `\`\`\`\n`;
 
-        for (const result of results) {
-            if (result.error) {
-                content += `## ⚠️ ${result.engine} (error)\n\n`;
-                content += `Error: ${result.error}\n\n`;
-                continue;
-            }
-
-            content += `## Engine: ${result.engine}\n\n`;
-            content += `- Files: ${result.fileCount}\n`;
-            content += `- Tokens: ~${result.tokenCount.toLocaleString()}\n`;
-            content += `- Duration: ${result.duration}ms\n\n`;
-
-            totalFiles = Math.max(totalFiles, result.fileCount);
-            totalTokens += result.tokenCount;
-        }
-
-        // Reference the separate engine output files instead of inlining
-        content += `---\n\n`;
-        content += `## Output Files\n\n`;
-        content += `The full engine outputs are stored in \`.crawler-sage/\`:\n\n`;
-        for (const result of results) {
-            if (!result.error) {
-                const filename = result.engine === 'repomix' ? 'repomix-output.md' : 'gitingest-output.md';
-                content += `- \`.crawler-sage/${filename}\` (${result.engine})\n`;
-            }
-        }
-        content += `\nThis file is a lightweight summary. Use the engine output files for full codebase context.\n`;
-
-        // Add file tree from repomix output
-        const primary = results.find(r => r.engine === 'repomix' && !r.error);
-        if (primary) {
-            const treeMatch = primary.content.match(/# Directory Structure\n```([\s\S]*?)```/);
-            if (treeMatch) {
-                content += `\n## Directory Structure\n\n\`\`\`\n${treeMatch[1]}\`\`\`\n`;
-            }
-        }
-
-        return { content, totalFiles, totalTokens };
+        return s;
     }
 
-    private formatComparison(repomix: EngineResult, gitingest: EngineResult, comparison: ComparisonResult): string {
-        let md = `# Crawler Sage — Engine Comparison\n\n`;
-        md += `Generated: ${new Date().toISOString()}\n\n`;
-
-        md += `## Summary\n\n`;
-        md += `| Metric | Repomix | Gitingest |\n`;
-        md += `|--------|---------|----------|\n`;
-        md += `| Files found | ${repomix.fileCount} | ${gitingest.fileCount} |\n`;
-        md += `| Token estimate | ~${repomix.tokenCount.toLocaleString()} | ~${gitingest.tokenCount.toLocaleString()} |\n`;
-        md += `| Duration | ${repomix.duration}ms | ${gitingest.duration}ms |\n`;
-        md += `| Errors | ${repomix.error || 'None'} | ${gitingest.error || 'None'} |\n\n`;
-
-        md += `## Cross-Check\n\n`;
-        md += `- **Overlap accuracy:** ${comparison.accuracy}%\n`;
-        md += `- **Files in both:** ${comparison.inBoth.length}\n`;
-        md += `- **Only in Repomix:** ${comparison.onlyInRepomix.length}\n`;
-        md += `- **Only in Gitingest:** ${comparison.onlyInGitingest.length}\n\n`;
-
-        if (comparison.onlyInRepomix.length > 0) {
-            md += `### Files only in Repomix\n\n`;
-            for (const f of comparison.onlyInRepomix.slice(0, 50)) {
-                md += `- \`${f}\`\n`;
+    private renderTree(node: FileNode, indent: string): string {
+        let out = '';
+        if (node.children) {
+            for (let i = 0; i < node.children.length; i++) {
+                const child = node.children[i];
+                const isLast = i === node.children.length - 1;
+                const prefix = isLast ? '└── ' : '├── ';
+                const nextIndent = indent + (isLast ? '    ' : '│   ');
+                out += `${indent}${prefix}${child.name}${child.type === 'directory' ? '/' : ''}\n`;
+                if (child.children) {
+                    out += this.renderTree(child, nextIndent);
+                }
             }
-            if (comparison.onlyInRepomix.length > 50) {
-                md += `- ... and ${comparison.onlyInRepomix.length - 50} more\n`;
-            }
-            md += `\n`;
         }
-
-        if (comparison.onlyInGitingest.length > 0) {
-            md += `### Files only in Gitingest\n\n`;
-            for (const f of comparison.onlyInGitingest.slice(0, 50)) {
-                md += `- \`${f}\`\n`;
-            }
-            if (comparison.onlyInGitingest.length > 50) {
-                md += `- ... and ${comparison.onlyInGitingest.length - 50} more\n`;
-            }
-            md += `\n`;
-        }
-
-        return md;
+        return out;
     }
 }

@@ -1,11 +1,11 @@
 {
   "name": "crawler-sage",
   "displayName": "Crawler Sage",
-  "description": "Real-time codebase context for AI agents — powered by Repomix + Gitingest with auto-updating file watcher",
-  "version": "1.0.1",
+  "description": "Instant codebase context for AI agents — Repomix + Tree-sitter compression with interactive tree visualization",
+  "version": "2.0.0",
   "publisher": "pudiish",
   "license": "MIT",
-  "icon": "assets/icon.png",
+  "icon": "assets/712d070f4f6039f17137ac4f7abaa68b.jpg",
   "repository": {
     "type": "git",
     "url": "https://github.com/pudiish/crawler-sage"
@@ -22,11 +22,12 @@
     "ai",
     "context",
     "repomix",
-    "gitingest",
+    "tree-sitter",
     "copilot",
     "cursor",
     "codebase",
-    "agent"
+    "agent",
+    "llm"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -36,26 +37,38 @@
     "commands": [
       {
         "command": "crawlerSage.generate",
-        "title": "Crawler Sage: Generate Context",
+        "title": "Generate Context",
+        "category": "Crawler Sage",
         "icon": "$(play)"
       },
       {
         "command": "crawlerSage.toggleWatch",
-        "title": "Crawler Sage: Toggle File Watcher",
+        "title": "Toggle File Watcher",
+        "category": "Crawler Sage",
         "icon": "$(eye)"
       },
       {
-        "command": "crawlerSage.compareEngines",
-        "title": "Crawler Sage: Compare Engine Outputs"
-      },
-      {
         "command": "crawlerSage.openContext",
-        "title": "Crawler Sage: Open Context File",
+        "title": "Open Context File",
+        "category": "Crawler Sage",
         "icon": "$(file)"
       },
       {
+        "command": "crawlerSage.openRawOutput",
+        "title": "Open Raw Repomix Output",
+        "category": "Crawler Sage",
+        "icon": "$(code)"
+      },
+      {
+        "command": "crawlerSage.viewTree",
+        "title": "Visualize Codebase Tree",
+        "category": "Crawler Sage",
+        "icon": "$(list-tree)"
+      },
+      {
         "command": "crawlerSage.refresh",
-        "title": "Crawler Sage: Refresh",
+        "title": "Refresh",
+        "category": "Crawler Sage",
         "icon": "$(refresh)"
       }
     ],
@@ -75,8 +88,8 @@
           "name": "Status"
         },
         {
-          "id": "crawlerSage.engines",
-          "name": "Engines"
+          "id": "crawlerSage.fileTree",
+          "name": "Codebase Tree"
         }
       ]
     },
@@ -90,6 +103,16 @@
         {
           "command": "crawlerSage.refresh",
           "when": "view == crawlerSage.status",
+          "group": "navigation"
+        },
+        {
+          "command": "crawlerSage.viewTree",
+          "when": "view == crawlerSage.fileTree",
+          "group": "navigation"
+        },
+        {
+          "command": "crawlerSage.refresh",
+          "when": "view == crawlerSage.fileTree",
           "group": "navigation"
         }
       ]
@@ -105,61 +128,29 @@
         "crawlerSage.debounceMs": {
           "type": "number",
           "default": 2000,
-          "description": "Debounce delay (ms) before regenerating context after a file change"
+          "description": "Debounce delay (ms) before regenerating after file changes"
         },
         "crawlerSage.outputFile": {
           "type": "string",
           "default": ".context.md",
-          "description": "Output file name for the generated context"
+          "description": "Output file name for the lean context summary"
         },
-        "crawlerSage.engines": {
-          "type": "array",
-          "default": [
-            "repomix",
-            "gitingest"
-          ],
-          "items": {
-            "type": "string",
-            "enum": [
-              "repomix",
-              "gitingest"
-            ]
-          },
-          "description": "Which context engines to use"
-        },
-        "crawlerSage.repomixStyle": {
+        "crawlerSage.outputStyle": {
           "type": "string",
-          "default": "markdown",
-          "enum": [
-            "markdown",
-            "xml",
-            "plain"
-          ],
-          "description": "Repomix output style"
+          "default": "xml",
+          "enum": ["xml", "markdown", "plain"],
+          "description": "Repomix output style — XML is most machine-readable for agents"
         },
         "crawlerSage.compress": {
           "type": "boolean",
           "default": true,
-          "description": "Use Tree-sitter compression to reduce token count by ~70%"
+          "description": "Use Tree-sitter compression (~70% token reduction)"
         },
         "crawlerSage.excludePatterns": {
           "type": "array",
-          "default": [
-            "node_modules",
-            ".git",
-            "dist",
-            "build",
-            ".context.md"
-          ],
-          "items": {
-            "type": "string"
-          },
-          "description": "File/folder patterns to exclude from watching"
-        },
-        "crawlerSage.gitingestEnabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable Gitingest engine (requires Python + pip install gitingest)"
+          "default": ["node_modules", ".git", "dist", "build", ".context.md"],
+          "items": { "type": "string" },
+          "description": "Patterns to exclude from file watching"
         }
       }
     }
@@ -168,18 +159,13 @@
     "vscode:prepublish": "npm run compile",
     "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
     "watch": "npm run compile -- --watch",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
     "esbuild": "^0.20.0",
-    "eslint": "^8.56.0",
     "typescript": "^5.3.0",
     "@vscode/vsce": "^2.22.0"
   }
