@@ -1,0 +1,181 @@
+{
+  "name": "crawler-sage",
+  "displayName": "Crawler Sage",
+  "description": "Real-time codebase context for AI agents — powered by Repomix + Gitingest with auto-updating file watcher",
+  "version": "1.0.0",
+  "publisher": "pudiish",
+  "license": "MIT",
+  "icon": "assets/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pudiish/crawler-sage"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "context",
+    "repomix",
+    "gitingest",
+    "copilot",
+    "cursor",
+    "codebase",
+    "agent"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "crawlerSage.generate",
+        "title": "Crawler Sage: Generate Context",
+        "icon": "$(play)"
+      },
+      {
+        "command": "crawlerSage.toggleWatch",
+        "title": "Crawler Sage: Toggle File Watcher",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "crawlerSage.compareEngines",
+        "title": "Crawler Sage: Compare Engine Outputs"
+      },
+      {
+        "command": "crawlerSage.openContext",
+        "title": "Crawler Sage: Open Context File",
+        "icon": "$(file)"
+      },
+      {
+        "command": "crawlerSage.refresh",
+        "title": "Crawler Sage: Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "crawlerSage",
+          "title": "Crawler Sage",
+          "icon": "assets/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "crawlerSage": [
+        {
+          "id": "crawlerSage.status",
+          "name": "Status"
+        },
+        {
+          "id": "crawlerSage.engines",
+          "name": "Engines"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "crawlerSage.generate",
+          "when": "view == crawlerSage.status",
+          "group": "navigation"
+        },
+        {
+          "command": "crawlerSage.refresh",
+          "when": "view == crawlerSage.status",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Crawler Sage",
+      "properties": {
+        "crawlerSage.watchEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically regenerate context when files change"
+        },
+        "crawlerSage.debounceMs": {
+          "type": "number",
+          "default": 2000,
+          "description": "Debounce delay (ms) before regenerating context after a file change"
+        },
+        "crawlerSage.outputFile": {
+          "type": "string",
+          "default": ".context.md",
+          "description": "Output file name for the generated context"
+        },
+        "crawlerSage.engines": {
+          "type": "array",
+          "default": [
+            "repomix",
+            "gitingest"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "repomix",
+              "gitingest"
+            ]
+          },
+          "description": "Which context engines to use"
+        },
+        "crawlerSage.repomixStyle": {
+          "type": "string",
+          "default": "markdown",
+          "enum": [
+            "markdown",
+            "xml",
+            "plain"
+          ],
+          "description": "Repomix output style"
+        },
+        "crawlerSage.excludePatterns": {
+          "type": "array",
+          "default": [
+            "node_modules",
+            ".git",
+            "dist",
+            "build",
+            ".context.md"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "File/folder patterns to exclude from watching"
+        },
+        "crawlerSage.gitingestEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Gitingest engine (requires Python + pip install gitingest)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "npm run compile -- --watch",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
