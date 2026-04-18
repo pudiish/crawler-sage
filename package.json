@@ -137,6 +137,11 @@
           ],
           "description": "Repomix output style"
         },
+        "crawlerSage.compress": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use Tree-sitter compression to reduce token count by ~70%"
+        },
         "crawlerSage.excludePatterns": {
           "type": "array",
           "default": [

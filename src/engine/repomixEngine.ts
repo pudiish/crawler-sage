@@ -6,7 +6,7 @@ import { EngineResult } from '../types';
 export class RepomixEngine {
     constructor(private workspaceRoot: string) {}
 
-    async run(style: string = 'markdown'): Promise<EngineResult> {
+    async run(style: string = 'markdown', compress: boolean = true): Promise<EngineResult> {
         const start = Date.now();
         const outputPath = path.join(this.workspaceRoot, '.crawler-sage', 'repomix-output.md');
 
@@ -21,16 +21,23 @@ export class RepomixEngine {
                 'repomix@latest',
                 this.workspaceRoot,
                 '--style', style,
+                '--ignore', '**/.git/**,.crawler-sage/**',
                 '-o', outputPath
             ];
+
+            if (compress) {
+                args.push('--compress');
+            }
 
             execFile('npx', args, {
                 cwd: this.workspaceRoot,
                 maxBuffer: 50 * 1024 * 1024, // 50MB
-                timeout: 120000, // 2 min
+                timeout: 180000, // 3 min (compression takes longer)
                 env: { ...process.env, NODE_NO_WARNINGS: '1' }
             }, (error, stdout, stderr) => {
                 const duration = Date.now() - start;
+                // Repomix prints stats to both stdout and stderr
+                const allOutput = `${stdout}\n${stderr}`;
 
                 if (error) {
                     resolve({
@@ -58,9 +65,9 @@ export class RepomixEngine {
                     // Output file might not exist if repomix failed silently
                 }
 
-                // Parse stats from stdout
-                const fileMatch = stdout.match(/(\d+)\s+file/i);
-                const tokenMatch = stdout.match(/([\d,]+)\s+token/i);
+                // Parse stats from stdout+stderr (Repomix outputs to both)
+                const fileMatch = allOutput.match(/(\d+)\s+file/i);
+                const tokenMatch = allOutput.match(/([\d,]+)\s+token/i);
 
                 resolve({
                     engine: 'repomix',

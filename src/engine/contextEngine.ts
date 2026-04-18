@@ -31,6 +31,7 @@ export class ContextEngine {
         const engines = config.get<string[]>('engines', ['repomix', 'gitingest']);
         const outputFile = config.get<string>('outputFile', '.context.md');
         const style = config.get<string>('repomixStyle', 'markdown');
+        const compress = config.get<boolean>('compress', true);
 
         const results: EngineResult[] = [];
 
@@ -38,7 +39,7 @@ export class ContextEngine {
         const promises: Promise<EngineResult>[] = [];
 
         if (engines.includes('repomix')) {
-            promises.push(this.repomix.run(style));
+            promises.push(this.repomix.run(style, compress));
         }
         if (engines.includes('gitingest') && config.get<boolean>('gitingestEnabled', true)) {
             promises.push(this.gitingest.run());
@@ -80,9 +81,10 @@ export class ContextEngine {
     async compareEngines(): Promise<string> {
         const config = vscode.workspace.getConfiguration('crawlerSage');
         const style = config.get<string>('repomixStyle', 'markdown');
+        const compress = config.get<boolean>('compress', true);
 
         const [repomixResult, gitingestResult] = await Promise.all([
-            this.repomix.run(style),
+            this.repomix.run(style, compress),
             this.gitingest.run()
         ]);
 
@@ -141,16 +143,24 @@ export class ContextEngine {
             totalTokens += result.tokenCount;
         }
 
-        // Use repomix output as primary content (it's the most complete)
+        // Reference the separate engine output files instead of inlining
+        content += `---\n\n`;
+        content += `## Output Files\n\n`;
+        content += `The full engine outputs are stored in \`.crawler-sage/\`:\n\n`;
+        for (const result of results) {
+            if (!result.error) {
+                const filename = result.engine === 'repomix' ? 'repomix-output.md' : 'gitingest-output.md';
+                content += `- \`.crawler-sage/${filename}\` (${result.engine})\n`;
+            }
+        }
+        content += `\nThis file is a lightweight summary. Use the engine output files for full codebase context.\n`;
+
+        // Add file tree from repomix output
         const primary = results.find(r => r.engine === 'repomix' && !r.error);
         if (primary) {
-            content += `---\n\n`;
-            content += primary.content;
-        } else {
-            const fallback = results.find(r => !r.error);
-            if (fallback) {
-                content += `---\n\n`;
-                content += fallback.content;
+            const treeMatch = primary.content.match(/# Directory Structure\n```([\s\S]*?)```/);
+            if (treeMatch) {
+                content += `\n## Directory Structure\n\n\`\`\`\n${treeMatch[1]}\`\`\`\n`;
             }
         }
 
